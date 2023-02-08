@@ -8,6 +8,9 @@ namespace DB_CourseWork.UI
     {
         private readonly IServiceProvider _serviceProvider;
 
+        // This class uses a service provider in order to resolve dependencies of presenters.
+        // An instance of this class is created only once in the composition root, and it only
+        // allows to create presenters (for navigation purposes), so it is not a service locator.
         public PresenterProvider(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
