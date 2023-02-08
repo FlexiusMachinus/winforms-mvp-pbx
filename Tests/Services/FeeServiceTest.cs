@@ -11,12 +11,12 @@ namespace DB_CourseWork.Tests
     [TestClass]
     public class FeeServiceTest
     {
+        private Mock<PbxContext> _contextMock;
+
+        private Mock<IPhoneStatusService> _statusServiceMock;
         private PhoneStatus _connectedStatus;
         private PhoneStatus _disconnectedStatus;
         private PhoneStatus _debtStatus;
-        private IQueryable<PhoneStatus> _statuses;
-
-        private Mock<PbxContext> _contextMock;
 
         [TestInitialize]
         public void InitializeTest()
@@ -24,10 +24,10 @@ namespace DB_CourseWork.Tests
             _connectedStatus = new PhoneStatus("Connected");
             _disconnectedStatus = new PhoneStatus("Disconnected");
             _debtStatus = new PhoneStatus("Debt");
-            _statuses = new List<PhoneStatus>() { _connectedStatus, _disconnectedStatus, _debtStatus }.AsQueryable();
+
+            _statusServiceMock = new Mock<IPhoneStatusService>();
 
             _contextMock = new Mock<PbxContext>();
-            _contextMock.Setup(c => c.PhoneStatuses).Returns(_statuses.GetMockDbSet().Object);
         }
 
         [TestMethod]
@@ -40,7 +40,7 @@ namespace DB_CourseWork.Tests
             }.AsQueryable();
 
             _contextMock.Setup(c => c.SubscriberPhones).Returns(phones.GetMockDbSet().Object);
-            var service = new FeeService(_contextMock.Object);
+            var service = new FeeService(_contextMock.Object, _statusServiceMock.Object);
 
             IList<SubscriberPhone> returnedPhones = service.GetDebtorPhones();
             SubscriberPhone phone = returnedPhones.FirstOrDefault();
@@ -51,19 +51,6 @@ namespace DB_CourseWork.Tests
         }
 
         [TestMethod]
-        public void GetStatuses_Returns_all_stasuses()
-        {
-            var phones = new List<SubscriberPhone>().AsQueryable();
-
-            _contextMock.Setup(c => c.SubscriberPhones).Returns(phones.GetMockDbSet().Object);
-            var service = new FeeService(_contextMock.Object);
-
-            List<PhoneStatus> returnedStatuses = service.GetStatuses().ToList();
-
-            CollectionAssert.AreEquivalent(returnedStatuses, _statuses.ToList());
-        }
-
-        [TestMethod]
         public void UpdateDebts_Changes_both_phones_statuses_and_calculates_debt_values()
         {
             var phone1 = new SubscriberPhone("100-00-01", null, "", "") { AccountBalance = 100 };
@@ -71,16 +58,18 @@ namespace DB_CourseWork.Tests
             var phones = new List<SubscriberPhone>() { phone1, phone2 }.AsQueryable();
 
             phone1.StatusHistory.Add(new StatusHistoryEntry(phone1, _debtStatus, DateTime.Now, ""));
+            _statusServiceMock.Setup(m => m.IsPhoneDebtor(phone1)).Returns(true);
+
             phone2.StatusHistory.Add(new StatusHistoryEntry(phone2, _connectedStatus, DateTime.Now, ""));
+            _statusServiceMock.Setup(m => m.IsPhoneConnected(phone2)).Returns(true);
 
             _contextMock.Setup(c => c.SubscriberPhones).Returns(phones.GetMockDbSet().Object);
-            var service = new FeeService(_contextMock.Object);
+            var service = new FeeService(_contextMock.Object, _statusServiceMock.Object);
 
             DebtCalculationResult result = service.UpdateDebts();
-            List<PhoneStatus> returnedStatuses = service.GetStatuses().ToList();
 
-            Assert.AreEqual(phone1.CurrentStatus, _connectedStatus);
-            Assert.AreEqual(phone2.CurrentStatus, _debtStatus);
+            _statusServiceMock.Verify(m => m.SetConnectedStatus(phone1, It.IsAny<string>()), Times.Once());
+            _statusServiceMock.Verify(m => m.SetDebtStatus(phone2, It.IsAny<string>()), Times.Once());
             Assert.AreEqual(result.DebtsTotal, result.NewDebts);
             Assert.AreEqual(result.DebtsTotal, 1);
             Assert.AreEqual(result.DebtsPaid, 100);
@@ -123,7 +112,10 @@ namespace DB_CourseWork.Tests
             var phones = new List<SubscriberPhone>() { phone1, phone2, phone3, phone4, phone5 }.AsQueryable();
             _contextMock.Setup(c => c.SubscriberPhones).Returns(phones.GetMockDbSet().Object);
 
-            var service = new FeeService(_contextMock.Object);
+            var service = new FeeService(_contextMock.Object, _statusServiceMock.Object);
+            _statusServiceMock.Setup(m => m.IsPhoneConnected(phone1)).Returns(true);
+            _statusServiceMock.Setup(m => m.IsPhoneConnected(phone2)).Returns(true);
+            _statusServiceMock.Setup(m => m.IsPhoneConnected(phone3)).Returns(true);
 
             FeeCalculationResult result = service.MakeTariffPayments();
 

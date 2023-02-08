@@ -9,36 +9,24 @@ namespace DB_CourseWork.Core
     public class FeeService : IFeeService
     {
         private readonly PbxContext _context;
+        private readonly IPhoneStatusService _statusService;
 
         private readonly IList<SubscriberPhone> _phones;
 
-        // TODO: Refactor this garbage (move to PhoneStatusService)
-        private readonly List<PhoneStatus> _phoneStatuses;
-        private readonly PhoneStatus _connectedStatus;
-        private readonly PhoneStatus _debtStatus;
-
-        public FeeService(PbxContext context)
+        public FeeService(PbxContext context, IPhoneStatusService statusService)
         {
             _context = context;
+            _statusService = statusService;
 
             _phones = _context.SubscriberPhones
                 .Include(p => p.StatusHistory.Select(e => e.Status))
                 .Include(p => p.TariffHistory.Select(e => e.Tariff))
                 .ToList();
-
-            _phoneStatuses = _context.PhoneStatuses.OrderBy(s => s.Id).ToList();
-            _connectedStatus = _phoneStatuses[0];
-            _debtStatus = _phoneStatuses[2];
         }
 
         public IList<SubscriberPhone> GetDebtorPhones()
         {
-            return _phones.Where(p => p.AccountBalance < 0 || p.CurrentStatus == _debtStatus).ToList();
-        }
-
-        public IList<PhoneStatus> GetStatuses()
-        {
-            return _phoneStatuses;
+            return _phones.Where(p => p.AccountBalance < 0 || _statusService.IsPhoneDebtor(p)).ToList();
         }
 
         public DebtCalculationResult UpdateDebts()
@@ -49,7 +37,16 @@ namespace DB_CourseWork.Core
 
             foreach (var phone in _phones)
             {
-                if (phone.CurrentStatus == _debtStatus)
+                if (_statusService.IsPhoneConnected(phone))
+                {
+                    if (phone.AccountBalance < 0)
+                    {
+                        newDebt += -phone.AccountBalance;
+
+                        _statusService.SetDebtStatus(phone);
+                    }
+                }
+                else if (_statusService.IsPhoneDebtor(phone))
                 {
                     if (phone.AccountBalance >= 0)
                     {
@@ -57,20 +54,11 @@ namespace DB_CourseWork.Core
                         decimal paymentsAmountSinceDebt = CalculateTotalPaymentAmount(phone, debtDate);
                         debtsPaid += Math.Abs(phone.AccountBalance - paymentsAmountSinceDebt);
 
-                        SetNewPhoneStatus(phone, _connectedStatus);
+                        _statusService.SetConnectedStatus(phone);
                     }
                     else
                     {
                         debtsTotal += -phone.AccountBalance;
-                    }
-                }
-                else if (phone.CurrentStatus == _connectedStatus)
-                {
-                    if (phone.AccountBalance < 0)
-                    {
-                        newDebt += -phone.AccountBalance;
-
-                        SetNewPhoneStatus(phone, _debtStatus);
                     }
                 }
             }
@@ -84,7 +72,7 @@ namespace DB_CourseWork.Core
         {
             int count = 0;
             decimal feesTotal = 0;
-            foreach (var phone in _phones.Where(p => p.AccountBalance >= 0 && p.CurrentStatus == _connectedStatus))
+            foreach (var phone in _phones.Where(p => p.AccountBalance >= 0 && _statusService.IsPhoneConnected(p)))
             {
                 feesTotal += MakeTariffPayment(phone);
                 ++count;
@@ -100,14 +88,6 @@ namespace DB_CourseWork.Core
             phone.AccountBalance -= fee;
             return fee;
         }
-
-        // TODO: Move to PhoneStatusService
-        private void SetNewPhoneStatus(SubscriberPhone phone, PhoneStatus newStatus, string comment = "")
-        {
-            var newStatusEntry = new StatusHistoryEntry(phone, newStatus, DateTime.Now, comment);
-            phone.StatusHistory.Add(newStatusEntry);
-        }
-
         private decimal CalculateTotalPaymentAmount(SubscriberPhone phone, DateTime startDate)
         {
             decimal totalAmount = 0;

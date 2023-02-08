@@ -14,7 +14,6 @@ namespace DB_CourseWork.Tests
     {
         private Mock<PbxContext> _contextMock;
         private List<SubscriberPhone> _phones;
-        private List<PhoneStatus> _statuses;
 
         [TestInitialize]
         public void InitializeTest()
@@ -25,19 +24,10 @@ namespace DB_CourseWork.Tests
                 new SubscriberPhone("100-00-02", null, "", "")
             };
 
-            _statuses = new List<PhoneStatus>()
-            { 
-                new PhoneStatus("Connected"),
-                new PhoneStatus("Disconnected"),
-                new PhoneStatus("Debt")
-            };
-
             Mock<DbSet<SubscriberPhone>> phonesMock = _phones.AsQueryable().GetMockDbSet();
-            Mock<DbSet<PhoneStatus>> statusesMock = _statuses.AsQueryable().GetMockDbSet();
 
             _contextMock = new Mock<PbxContext>();
             _contextMock.Setup(c => c.SubscriberPhones).Returns(phonesMock.Object);
-            _contextMock.Setup(c => c.PhoneStatuses).Returns(statusesMock.Object);
         }
 
         [TestMethod]
@@ -48,16 +38,6 @@ namespace DB_CourseWork.Tests
             List<SubscriberPhone> returnedPhones = service.GetAllSubscriberPhones().ToList();
 
             CollectionAssert.AreEquivalent(_phones.ToList(), returnedPhones);
-        }
-
-        [TestMethod]
-        public void GetStatuses_Returns_all_stasuses()
-        {
-            var service = new FeeService(_contextMock.Object);
-
-            List<PhoneStatus> returnedStatuses = service.GetStatuses().ToList();
-
-            CollectionAssert.AreEquivalent(returnedStatuses, _statuses.ToList());
         }
 
         [TestMethod]

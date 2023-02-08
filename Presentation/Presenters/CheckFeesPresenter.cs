@@ -8,11 +8,13 @@ namespace DB_CourseWork.Presentation
     {
         private readonly ICheckFeesView _view;
         private readonly IFeeService _feeService;
+        private readonly IPhoneStatusService _statusService;
 
-        public CheckFeesPresenter(ICheckFeesView view, IFeeService feeService)
+        public CheckFeesPresenter(ICheckFeesView view, IFeeService feeService, IPhoneStatusService statusService)
         {
             _view = view;
             _feeService = feeService;
+            _statusService = statusService;
 
             _view.UpdateDebts += OnUpdateDebts;
             _view.MakeTariffPayments += OnMakeTariffPayments;
@@ -26,7 +28,7 @@ namespace DB_CourseWork.Presentation
                 .OrderBy(p => p.CurrentStatus.Id)
                 .ThenBy(p =>p.AccountBalance);
 
-            _view.PhoneStatusesDataSource = _feeService.GetStatuses();
+            _view.PhoneStatusesDataSource = _statusService.GetStatuses();
         }
 
         public void Run(IView parentView)

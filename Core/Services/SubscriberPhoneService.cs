@@ -13,18 +13,12 @@ namespace DB_CourseWork.Core
         public SubscriberPhoneService(PbxContext context)
         {
             _context = context;
-            _context.PhoneStatuses.Load();
             _context.SubscriberPhones.Load();
         }
 
         public IList<SubscriberPhone> GetAllSubscriberPhones()
         {
             return _context.SubscriberPhones.Local.ToBindingList();
-        }
-
-        public IList<PhoneStatus> GetPhoneStatuses()
-        {
-            return _context.PhoneStatuses.ToList();
         }
 
         public SubscriberPhone FindSubscriberPhoneByNumber(string phoneNumber)

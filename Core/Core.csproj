@@ -72,9 +72,11 @@
     <Compile Include="Services\FeeService.cs" />
     <Compile Include="Services\IFeeService.cs" />
     <Compile Include="Services\IPaymentService.cs" />
+    <Compile Include="Services\IPhoneStatusService.cs" />
     <Compile Include="Services\ISubscriberPhoneService.cs" />
     <Compile Include="Services\IReportService.cs" />
     <Compile Include="Services\PaymentService.cs" />
+    <Compile Include="Services\PhoneStatusService.cs" />
     <Compile Include="Services\SubscriberPhoneService.cs" />
     <Compile Include="Services\ReportService.cs" />
   </ItemGroup>

@@ -12,19 +12,14 @@ namespace DB_CourseWork.Core
     {
         private readonly PbxContext _context;
 
-        // TODO: Refactor this garbage (move to PhoneStatusService)
-        private readonly List<PhoneStatus> _phoneStatuses;
-        private readonly PhoneStatus _connectedStatus;
-        private readonly PhoneStatus _debtStatus;
+        private readonly IPhoneStatusService _statusService;
 
-        public PaymentService(PbxContext context)
+        public PaymentService(PbxContext context, IPhoneStatusService statusService)
         {
             _context = context;
             _context.Payments.Load();
 
-            _phoneStatuses = _context.PhoneStatuses.OrderBy(s => s.Id).ToList();
-            _connectedStatus = _phoneStatuses[0];
-            _debtStatus = _phoneStatuses[2];
+            _statusService = statusService;
         }
 
         public IList<Payment> GetAllPayments()
@@ -40,17 +35,10 @@ namespace DB_CourseWork.Core
             _context.Payments.Add(payment);
 
             payment.Phone.AccountBalance += payment.Amount;
-            if (payment.Phone.AccountBalance >= 0 && payment.Phone.CurrentStatus == _debtStatus)
+            if (payment.Phone.AccountBalance >= 0 && _statusService.IsPhoneDebtor(payment.Phone))
             {
-                SetNewPhoneStatus(payment.Phone, _connectedStatus);
+                _statusService.SetConnectedStatus(payment.Phone);
             }
-        }
-
-        // TODO: Move to PhoneStatusService
-        private void SetNewPhoneStatus(SubscriberPhone phone, PhoneStatus newStatus, string comment = "")
-        {
-            var newStatusEntry = new StatusHistoryEntry(phone, newStatus, DateTime.Now, comment);
-            phone.StatusHistory.Add(newStatusEntry);
         }
 
         public void RemovePaymentsByIds(IEnumerable<int> paymentIds)

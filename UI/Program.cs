@@ -37,6 +37,7 @@ namespace DB_CourseWork.UI
                 .AddScoped<IPresenterFactory, PresenterProvider>()
                 .AddScoped<INavigator, Navigator>()
                 .AddTransient<ISubscriberPhoneService, SubscriberPhoneService>()
+                .AddTransient<IPhoneStatusService, PhoneStatusService>()
                 .AddTransient<IPaymentService, PaymentService>()
                 .AddTransient<IReportService, ReportService>()
                 .AddTransient<IFeeService, FeeService>()
